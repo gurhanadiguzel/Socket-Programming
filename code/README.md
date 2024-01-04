@@ -29,3 +29,7 @@ These files implement a simple UDP-based file transfer benchmark. The server sen
 python3 udp_server.py <SERVER_PORT>
 python3 udp_client.py <SERVER_ADDRESS> <SERVER_PORT>
 ```
+
+#### Authors:
+-Gürhan İlhan Adıgüzel
+-Aybüke Aksoy
