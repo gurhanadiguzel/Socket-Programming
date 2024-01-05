@@ -1,34 +1,44 @@
-# udp_server.py
 from random import randint
 import socket
 import sys
 from packet import *
 
-def udpHelper(serverSocket, clientAddress, fileNames: list):
-    #fileNames (list): List of file names to be sent to the client.
+# Function to assist UDP server in handling file transfer with Selective Repeat mechanism
+def udpHelper(serverSocket, clientAddress, fileNames: list, timeoutOptimal: float):
+    # Loop through each file name to be sent to the client
     for fileName in fileNames:
         sequenceNumber = 0
-        windowSize = 120
-        baseNumber = 0
+        windowSize = 120    # Set window size for Selective Repeat
+        baseNumber = 0      # Set base number for Selective Repeat
         print(fileName)
+        
+        # Create a packet object for the current file
         packet = Packet(fileName)
-        packets = packet.splitPacket()
-        sequenceNumberList = [False] * packet.packetNumber
+        
+        # Split the packet into smaller packets and store them in a list
+        packets = packet.splitPacket()  
+
+        # Create a list to keep track of received ACKs for each packet
+        sequenceNumberList = [False] * packet.packetNumber  
 
         # Loop until all packets are successfully sent and acknowledged
         while sequenceNumberList.count(True) != packet.packetNumber:
-            # Send packets within the window
             serverSocket.settimeout(None)
+            
+            # Send all the packets within the window and check if they are ACKed
             while sequenceNumber < baseNumber + windowSize and sequenceNumber < packet.packetNumber:
                 if not sequenceNumberList[sequenceNumber]:
+                    # Encode the contents and send the packet
                     data = packet.encodeUDP(fileName, packets[sequenceNumber], sequenceNumber, packet.packetNumber)
                     serverSocket.sendto(data, clientAddress)
                 sequenceNumber += 1
 
-            # Set timeout for acknowledgment reception
-            serverSocket.settimeout(0.13)
+            # Set a timeout for acknowledgment reception
+            serverSocket.settimeout(timeoutOptimal)
+            
             while True:
                 try:
+                    # Start receiving ACKs
                     (receivedMessage, _) = serverSocket.recvfrom(2048)
                     receivedMessageDecoded = receivedMessage.decode()
 
@@ -36,6 +46,7 @@ def udpHelper(serverSocket, clientAddress, fileNames: list):
                     if receivedMessageDecoded.startswith("ACK"):
                         if fileName[0] == receivedMessageDecoded[3]:
                             receivedSequenceNumber = int(receivedMessageDecoded[4:])
+                            # Mark the received packet as ACKed
                             if not sequenceNumberList[receivedSequenceNumber]:
                                 sequenceNumberList[receivedSequenceNumber] = True
 
@@ -50,17 +61,21 @@ def udpHelper(serverSocket, clientAddress, fileNames: list):
                         break
 
                 except socket.timeout as t:
+                    # If timeout occurs, set the current sequence number to the base number and resend unACKed packets
                     sequenceNumber = baseNumber
                     break
 
-        # Set timeout for "exit" message
+        # Set a timeout for the "exit" message
         serverSocket.settimeout(0.1)
+        
         while True:
+            # Send an exit message to the client to finish receiving the current object
             serverSocket.sendto("exit".encode(), clientAddress)
             try:
                 (receivedMessage, _) = serverSocket.recvfrom(2048)
                 if receivedMessage.decode() == "exit":
                     break
+
             except socket.timeout as t:
                 # Break the loop if the last file is processed
                 if fileName == fileNames[-1]:
@@ -68,11 +83,15 @@ def udpHelper(serverSocket, clientAddress, fileNames: list):
                     break
                 continue
 
-def udp(serverAddress: str, serverPort: int):
+# UDP server function
+def udp(serverAddress: str, serverPort: int, timeoutOptimal: float):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as serverSocket:
+        # Bind the server socket to the specified address and port
         serverSocket.bind((serverAddress, serverPort))
         print("Server Address UDP: ", serverAddress)
         print("Server Port UDP: ", serverPort)
+        
+        # List of file names to be sent to the client
         fileNames = []
         for i in range(0, 10):
             fileNames.append("large-" + str(i) + ".obj")
@@ -83,23 +102,29 @@ def udp(serverAddress: str, serverPort: int):
                 # Receive an initial message from the client to initiate communication
                 _, clientAddress = serverSocket.recvfrom(1024)
                 if clientAddress:
+                    # Send a greeting message to the client
                     serverSocket.sendto("Hello Client!".encode(), clientAddress)
                     serverSocket.settimeout(1)
             except socket.timeout as t:
                 # Run the UDP helper function to handle file transfer
-                udpHelper(serverSocket, clientAddress, fileNames)
+                udpHelper(serverSocket, clientAddress, fileNames, timeoutOptimal)
                 break
 
+# Main function to execute the UDP server
 def main():
-    # Get server Address
+    # Get the UDP server port from the command line arguments
     serverPortUDP = int(sys.argv[1])
+    
+    # Timeout should be set to an optimal value for different test cases
+    timeoutOptimal = float(sys.argv[2])
 
-    # Get computer IP Address
+    # Get the computer's IP address
     serverAddress = socket.gethostbyname(socket.gethostname())
 
     # Run the UDP server function
-    udp(serverAddress, serverPortUDP)
+    udp(serverAddress, serverPortUDP, timeoutOptimal)
 
+# Run the main function if the script is executed directly
 if __name__ == "__main__":
     main()
     # Example usage: python3 udp_server.py 51

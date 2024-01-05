@@ -55,6 +55,7 @@ def udp(serverAddress: str, serverPort: int, fileNames: list):
                                 fileName = receivedFileName
                                 dataList = [-1] * fileSize
                                 sequenceNumberList = [False] * fileSize
+                                # Set starting timestamp
                                 timestamp[0] = time()
                                 packetNumber = fileSize
 
@@ -62,7 +63,8 @@ def udp(serverAddress: str, serverPort: int, fileNames: list):
                             if not sequenceNumberList[sequenceNumber]:
                                 sequenceNumberList[sequenceNumber] = True
                                 dataList[sequenceNumber] = data
-
+                            
+                            # Set last timestamp for last receiving message time 
                             timestamp[1] = time()
 
                             # Send an acknowledgment to the server
