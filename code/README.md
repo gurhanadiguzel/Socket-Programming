@@ -22,10 +22,11 @@ python3 tcp_client.py <SERVER_ADDRESS> <SERVER_PORT>
 ### `udp_client.py`  and `udp_server.py`
 
 These files implement a simple UDP-based file transfer benchmark. The server sends files to the client, and the transfer times are measured and printed. The project uses a custom packet.py module to handle encoding and decoding packets for UDP communication.
-OPTIMAL_TIMEOUT_VALUES should be set:
-For Delay -> 0.13
-For Loss and Corruption -> 0.10
-For Benchmark and Duplication -> 0.01
+OPTIMAL_TIMEOUT_VALUES should be set:  
+For Delay -> 0.13  
+For Loss and Corruption -> 0.10  
+For Benchmark and Duplication -> 0.01  
+
 #### Running the UDP Server and the UDP Client:
 
 ```bash
