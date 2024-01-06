@@ -36,52 +36,48 @@ def udpHelper(serverSocket, clientAddress, fileNames: list, timeoutOptimal: floa
             # Set a timeout for acknowledgment reception
             serverSocket.settimeout(timeoutOptimal)
             
+            #while True:
+            try:
+                # Start receiving ACKs
+                (receivedMessage, _) = serverSocket.recvfrom(2048)
+                receivedMessageDecoded = receivedMessage.decode()
+
+                 # Process acknowledgment messages
+                if receivedMessageDecoded.startswith("ACK"):
+                    if fileName[0] == receivedMessageDecoded[3]:
+                        receivedSequenceNumber = int(receivedMessageDecoded[4:])
+                        # Mark the received packet as ACKed
+                        if not sequenceNumberList[receivedSequenceNumber]:
+                            sequenceNumberList[receivedSequenceNumber] = True
+
+                # Move the base number to the next unacknowledged packet
+                while sequenceNumberList[baseNumber]:
+                    baseNumber += 1
+                    if baseNumber == packet.packetNumber:
+                        break
+
+            except socket.timeout as t:
+                # If timeout occurs, set the current sequence number to the base number and resend unACKed packets
+                sequenceNumber = baseNumber
+
+        # Break from the loop if all packets are acknowledged
+        if sequenceNumberList.count(True) == packet.packetNumber:
+            # Set a timeout for the "exit" message
+            serverSocket.settimeout(0.1)
             while True:
+                # Send an exit message to the client to finish receiving the current object
+                serverSocket.sendto("exit".encode(), clientAddress)
                 try:
-                    # Start receiving ACKs
                     (receivedMessage, _) = serverSocket.recvfrom(2048)
-                    receivedMessageDecoded = receivedMessage.decode()
-
-                    # Process acknowledgment messages
-                    if receivedMessageDecoded.startswith("ACK"):
-                        if fileName[0] == receivedMessageDecoded[3]:
-                            receivedSequenceNumber = int(receivedMessageDecoded[4:])
-                            # Mark the received packet as ACKed
-                            if not sequenceNumberList[receivedSequenceNumber]:
-                                sequenceNumberList[receivedSequenceNumber] = True
-
-                    # Move the base number to the next unacknowledged packet
-                    while sequenceNumberList[baseNumber]:
-                        baseNumber += 1
-                        if baseNumber == packet.packetNumber:
-                            break
-
-                    # Break from the loop if all packets are acknowledged
-                    if sequenceNumberList.count(True) == packet.packetNumber:
+                    if receivedMessage.decode() == "exit":
                         break
 
                 except socket.timeout as t:
-                    # If timeout occurs, set the current sequence number to the base number and resend unACKed packets
-                    sequenceNumber = baseNumber
-                    break
-
-        # Set a timeout for the "exit" message
-        serverSocket.settimeout(0.1)
-        
-        while True:
-            # Send an exit message to the client to finish receiving the current object
-            serverSocket.sendto("exit".encode(), clientAddress)
-            try:
-                (receivedMessage, _) = serverSocket.recvfrom(2048)
-                if receivedMessage.decode() == "exit":
-                    break
-
-            except socket.timeout as t:
-                # Break the loop if the last file is processed
-                if fileName == fileNames[-1]:
-                    serverSocket.sendto("exit".encode(), clientAddress)
-                    break
-                continue
+                    # Break the loop if the last file is processed
+                    if fileName == fileNames[-1]:
+                        serverSocket.sendto("exit".encode(), clientAddress)
+                        break
+                    continue
 
 # UDP server function
 def udp(serverAddress: str, serverPort: int, timeoutOptimal: float):
